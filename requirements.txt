@@ -1,0 +1,2 @@
+Python="3.14.10"
+pygame-ce=2.5.2

@@ -1,68 +1,72 @@
-"""Отрисовка фрактала на холсте."""
-import tkinter as tk
+"""Класс для отрисовки модели на экране."""
 import random
+import pygame
+from src.models.animation_model import ToothpickModel
 
+class Renderer:
+    """Класс Renderer (отрисовка)."""
 
-class FractalRenderer:
-    """Рисует зубочистки в виде квадратов."""
-
-    BG_COLOR = "#fdf6f8"
-    PALETTE = [
-        "#f7e4ec",
-        "#e8b8ce",
-        "#d9a4b8",
-        "#c58fb3",
-        "#b389c5",
-        "#a98298",
-        "#8bb8cc",
-    ]
-
-    def __init__(self, canvas):
-        """Сохранить ссылку на холст."""
-        self.canvas = canvas
-        self.size = 4
-        self.scale = 1.0
-
-    def draw(self, occupied):
-        """Очистить холст и нарисовать все занятые точки."""
-        self.canvas.delete("all")
-
-        if not occupied:
-            return
-
-        # Границы для центрирования и авто-зума
-        xs = [p[0] for p in occupied]
-        ys = [p[1] for p in occupied]
-        min_x, max_x = min(xs), max(xs)
-        min_y, max_y = min(ys), max(ys)
-
-        # Размеры холста
-        cw = self.canvas.winfo_width()
-        ch = self.canvas.winfo_height()
-        if cw <= 1:
-            cw, ch = 800, 600
-
+    def __init__(self, width: int, height: int) -> None:
+        """Инициализация рендерера, цветов и параметров камеры."""
+        self.width = width
+        self.height = height
+        self.center_x = width // 2
+        self.center_y = height // 2
+        
+        # Палитра цветов (фиолетовые, пепельные, пурпурные, нежно-розовые, светло-голубые)
+        self.palette = [
+            (155, 89, 182),   # Фиолетовый
+            (149, 165, 166),  # Пепельный
+            (192, 57, 43),    # Пурпурный (темный)
+            (255, 182, 193),  # Нежно-розовый
+            (174, 214, 241),  # Светло-голубой
+            (142, 68, 173),   # Аметистовый
+        ]
+        
         # Автоматический зум
-        width_span = max(1, max_x - min_x + 1)
-        height_span = max(1, max_y - min_y + 1)
-        self.scale = min(cw * 0.8 / width_span, ch * 0.8 / height_span)
-        self.scale = max(1.0, min(self.scale, 30.0))  # Ограничение
+        self.scale = 20.0
+        self.min_scale = 2.0
+        
+        # Отслеживание отрисованных элементов для оптимизации
+        self.drawn_count = 0
 
-        # Смещение для центрирования
-        offset_x = cw / 2 - (min_x + max_x) / 2 * self.scale
-        offset_y = ch / 2 - (min_y + max_y) / 2 * self.scale
+    def reset(self) -> None:
+        """Сброс параметров рендерера."""
+        self.scale = 20.0
+        self.drawn_count = 0
 
-        size = self.size
+    def draw(self, screen: pygame.Surface, model: ToothpickModel) -> None:
+        """Отрисовка текущего состояния модели.
 
-        for x, y in occupied:
-            color = random.choice(self.PALETTE)
+        Args:
+            screen (pygame.Surface): Поверхность для отрисовки.
+            model (ToothpickModel): Модель данных.
+        """
+        # Нежно-розовый фон
+        screen.fill((255, 240, 245))
 
-            px = x * self.scale + offset_x
-            py = y * self.scale + offset_y
+        # Автоматический зум: уменьшаем масштаб по мере роста фрактала
+        if len(model.toothpicks) > 0:
+            target_scale = max(self.min_scale, 800.0 / (len(model.toothpicks) ** 0.5))
+            self.scale += (target_scale - self.scale) * 0.05
 
-            r = size * self.scale * 0.5
-
-            self.canvas.create_rectangle(
-                px - r, py - r, px + r, py + r,
-                fill=color, outline=""
-            )
+        # Отрисовка только новых элементов (для анимации появления)
+        # Для простоты каждый кадр перерисовываем всё, но цвета берем из палитры случайно
+        for i, (x, y, orient) in enumerate(model.toothpicks):
+            # Преобразование координат модели в экранные
+            screen_x = int(self.center_x + x * self.scale)
+            screen_y = int(self.center_y + y * self.scale)
+            
+            length = int(self.scale * 0.9)
+            if length < 2:
+                length = 2
+                
+            # Выбираем цвет для каждой зубочистки
+            color = self.palette[i % len(self.palette)]
+            
+            if orient == 0:  # Горизонтальная
+                rect = pygame.Rect(screen_x - length // 2, screen_y - 2, length, 4)
+            else:            # Вертикальная
+                rect = pygame.Rect(screen_x - 2, screen_y - length // 2, 4, length)
+                
+            pygame.draw.rect(screen, color, rect)

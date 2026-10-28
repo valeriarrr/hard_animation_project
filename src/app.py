@@ -1,66 +1,54 @@
-"""Главное окно приложения."""
-import tkinter as tk
-from tkinter import font as tkfont
-
+"""Главный класс приложения, управляющий окном и циклом."""
+import pygame
 from src.models.animation_model import ToothpickModel
-from src.renderers.renderer import FractalRenderer
-from src.widgets.controls import OvalButton
-
+from src.renderers.renderer import Renderer
+from src.widgets.controls import Controls
 
 class App:
-    """Управляет окном, анимацией и кнопками."""
+    """Класс App (окно, главный цикл)."""
 
-    def __init__(self):
-        """Создать окно и запустить интерфейс."""
-        self.root = tk.Tk()
-        self.root.title("Фрактал Омара Пола")
-        self.root.geometry("800x600")
-        self.root.configure(bg="#fdf6f8")
-
+    def __init__(self) -> None:
+        """Инициализация окна, модели и рендерера."""
+        pygame.init()
+        self.width = 1000
+        self.height = 800
+        self.screen = pygame.display.set_mode((self.width, self.height))
+        pygame.display.set_caption("Фрактал Омара Пола (Toothpick Sequence)")
+        self.clock = pygame.time.Clock()
+        
         self.model = ToothpickModel()
-        self.is_animating = False
+        self.renderer = Renderer(self.width, self.height)
+        self.controls = Controls()
+        
+        self.running = True
+        self.paused = False
 
-        self._build_ui()
+    def run(self) -> None:
+        """Главный цикл приложения."""
+        while self.running:
+            self._handle_events()
+            
+            if not self.paused:
+                self.model.update()
+                
+            self.renderer.draw(self.screen, self.model)
+            self.controls.draw(self.screen)
+            
+            pygame.display.flip()
+            self.clock.tick(60)  # 60 FPS
 
-    def _build_ui(self):
-        """Собрать интерфейс."""
-        title_font = tkfont.Font(family="Segoe UI Semibold", size=18, weight="bold")
-        tk.Label(self.root, text="Фрактал Омара Пола",
-                 bg="#fdf6f8", fg="#7a3d57", font=title_font).pack(pady=(15, 5))
+        pygame.quit()
 
-        self.canvas = tk.Canvas(self.root, bg="#fdf6f8", highlightthickness=0)
-        self.canvas.pack(fill="both", expand=True, padx=20, pady=10)
-
-        self.canvas.after(100, lambda: self.renderer.draw(self.model.occupied))
-
-        self.btn = OvalButton(
-            self.root, text="Старт / Сброс", command=self.toggle_animation,
-            width=160, height=50, master_bg="#fdf6f8"
-        )
-        self.btn.pack(side="bottom", pady=20)
-
-        self.renderer = FractalRenderer(self.canvas)
-
-    def toggle_animation(self):
-        """Запустить или остановить анимацию."""
-        if self.is_animating:
-            self.is_animating = False
-        else:
-            self.is_animating = True
-            self.animate()
-
-    def animate(self):
-        """Выполнять шаги анимации с задержкой."""
-        if not self.is_animating:
-            return
-        if self.model.step >= 50:
-            self.is_animating = False
-            return
-
-        self.model.next_step()
-        self.renderer.draw(self.model.occupied)
-        self.root.after(200, self.animate)
-
-    def run(self):
-        """Запустить главный цикл."""
-        self.root.mainloop()
+    def _handle_events(self) -> None:
+        """Обработка событий клавиатуры и закрытия окна."""
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.running = False
+                elif event.key == pygame.K_SPACE:
+                    self.paused = not self.paused
+                elif event.key == pygame.K_r:
+                    self.model.reset()
+                    self.renderer.reset()
