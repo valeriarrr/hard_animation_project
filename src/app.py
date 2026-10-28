@@ -25,19 +25,23 @@ class App:
 
     def run(self) -> None:
         """Главный цикл приложения."""
+        frame_counter = 0
+        update_every = 15  # обновлять модель раз в 15 кадров (было каждый кадр)
+
         while self.running:
             self._handle_events()
-            
+
             if not self.paused:
-                self.model.update()
-                
+                frame_counter += 1
+                if frame_counter >= update_every:
+                    self.model.update()
+                    frame_counter = 0
+
             self.renderer.draw(self.screen, self.model)
             self.controls.draw(self.screen)
-            
-            pygame.display.flip()
-            self.clock.tick(60)  # 60 FPS
 
-        pygame.quit()
+            pygame.display.flip()
+            self.clock.tick(60)
 
     def _handle_events(self) -> None:
         """Обработка событий клавиатуры и закрытия окна."""
